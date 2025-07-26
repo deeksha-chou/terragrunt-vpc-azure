@@ -7,7 +7,7 @@ pool:
   name: aws_host  # Your self-hosted agent name
 
 variables:
-  - group: aws-credentials  # Loads AWS access keys
+  - group: aws-credentials  # This variable group must contain AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
 
 steps:
   - script: |
@@ -15,12 +15,12 @@ steps:
       choco install terragrunt -y
     displayName: "Install Terragrunt"
 
-  - script: |
-      echo "Setting up AWS credentials..."
-      mkdir -p ~/.aws
-      echo "[default]" > ~/.aws/credentials
-      echo "aws_access_key_id=$(AWS_ACCESS_KEY_ID)" >> ~/.aws/credentials
-      echo "aws_secret_access_key=$(AWS_SECRET_ACCESS_KEY)" >> ~/.aws/credentials
+  - powershell: |
+      Write-Output "Configuring AWS credentials..."
+      $awsDir = "$env:USERPROFILE\.aws"
+      New-Item -ItemType Directory -Path $awsDir -Force | Out-Null
+      $creds = "[default]`naws_access_key_id=$env:AWS_ACCESS_KEY_ID`naws_secret_access_key=$env:AWS_SECRET_ACCESS_KEY"
+      $creds | Out-File -FilePath "$awsDir\credentials" -Encoding ascii
     displayName: "Configure AWS CLI credentials"
 
   - script: |
@@ -28,4 +28,3 @@ steps:
       terragrunt init
       terragrunt plan
     displayName: "Terragrunt Init & Plan - dev"
-
