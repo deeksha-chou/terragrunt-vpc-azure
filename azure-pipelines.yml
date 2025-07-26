@@ -10,11 +10,6 @@ variables:
   - group: aws-credentials  # Loads AWS access keys
 
 steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.x'
-      addToPath: true
-
   - script: |
       echo "Installing Terragrunt..."
       choco install terragrunt -y
