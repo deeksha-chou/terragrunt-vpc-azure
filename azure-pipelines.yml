@@ -7,7 +7,7 @@ pool:
   name: aws_host  # Your self-hosted agent name
 
 variables:
-  - group: aws-credentials  # This variable group must contain AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+  - group: aws-credentials  # This must contain AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
 
 steps:
   - script: |
@@ -28,3 +28,6 @@ steps:
       terragrunt init
       terragrunt plan
     displayName: "Terragrunt Init & Plan - dev"
+    env:
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
