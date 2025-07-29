@@ -1,0 +1,59 @@
+name: terragrunt-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  paths:
+    include:
+      - envs/**
+      - terragrunt/**
+      - modules/**
+
+pool:
+  name: aws-agent
+
+variables:
+  - group: aws-credentials
+
+stages:
+- stage: Validate
+  displayName: 'Validate Terraform Format'
+  jobs:
+    - job: fmt
+      displayName: 'Check formatting with terraform fmt'
+      steps:
+        - script: |
+            choco install terraform -y
+            terraform fmt -check -recursive
+          displayName: 'Run terraform fmt check'
+        - task: PowerShell@2
+          displayName: 'Fail if formatting incorrect'
+          inputs:
+            targetType: inline
+            script: |
+              if ($LASTEXITCODE -ne 0) {
+                Write-Error "Terraform files are not properly formatted."
+              }
+
+- stage: Plan
+  dependsOn: Validate
+  jobs:
+    - job: terragruntPlan
+      displayName: 'Terragrunt Init & Plan'
+      steps:
+        - script: |
+            choco install terragrunt -y
+            cd terragrunt/envs/dev
+            terragrunt init
+            terragrunt plan
+          displayName: 'Terragrunt Init and Plan (Dev)'
+
+- stage: Apply
+  dependsOn: Plan
+  condition: succeeded()
+  jobs:
+    - job: terragruntApply
+      displayName: 'Terragrunt Apply'
+      steps:
+        - script: |
+            cd terragrunt/envs/dev
+            terragrunt apply -auto-approve
+          displayName: 'Terragrunt Apply (Dev)'
