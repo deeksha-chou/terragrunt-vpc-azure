@@ -10,7 +10,7 @@ variable "private_data_subnet_az2_cidr" {}
 
 
 variable "availability_zones" {
-  type = list(string)
+  type    = list(string)
   default = ["eu-north-1a", "eu-north-1b", "eu-north-1c"]
 }
 

@@ -11,7 +11,7 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "${var.project_name}-vpc"
+    Name        = "${var.project_name}-vpc"
     Environment = var.environment
   }
 }
@@ -22,7 +22,7 @@ resource "aws_internet_gateway" "internet_gateway" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name = "${var.project_name}-igw"
+    Name        = "${var.project_name}-igw"
     Environment = var.environment
   }
 }
@@ -36,10 +36,10 @@ resource "aws_subnet" "public_subnet_az1" {
   map_public_ip_on_launch = true
 
   tags = {
-     Name        = "${var.project_name}-public-subnet-az1"
-  Environment = var.environment
-}
+    Name        = "${var.project_name}-public-subnet-az1"
+    Environment = var.environment
   }
+}
 
 
 # create public subnet az2
@@ -50,10 +50,10 @@ resource "aws_subnet" "public_subnet_az2" {
   availability_zone       = var.availability_zones[1]
   map_public_ip_on_launch = true
 
- tags = {
-  Name        = "${var.project_name}-public-subnet-az2"
-  Environment = var.environment
-}
+  tags = {
+    Name        = "${var.project_name}-public-subnet-az2"
+    Environment = var.environment
+  }
 }
 
 
@@ -67,9 +67,9 @@ resource "aws_route_table" "public_route_table" {
   }
 
   tags = {
-  Name        = "${var.project_name}-public-rt"
-  Environment = var.environment
-}
+    Name        = "${var.project_name}-public-rt"
+    Environment = var.environment
+  }
 }
 
 # associate public subnet az1 to "public route table"
@@ -87,53 +87,53 @@ resource "aws_route_table_association" "public_subnet_az2_route_table_associatio
 
 # create private app subnet az1
 resource "aws_subnet" "private_app_subnet_az1" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_app_subnet_az1_cidr
-  availability_zone = var.availability_zones[0]
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_app_subnet_az1_cidr
+  availability_zone       = var.availability_zones[0]
   map_public_ip_on_launch = false
 
- tags = {
-  Name        = "${var.project_name}-private-app-subnet-az1"
-  Environment = var.environment
-}
+  tags = {
+    Name        = "${var.project_name}-private-app-subnet-az1"
+    Environment = var.environment
+  }
 }
 
 # create private app subnet az2
 resource "aws_subnet" "private_app_subnet_az2" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_app_subnet_az2_cidr
-  availability_zone = var.availability_zones[1]
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_app_subnet_az2_cidr
+  availability_zone       = var.availability_zones[1]
   map_public_ip_on_launch = false
 
   tags = {
-  Name        = "${var.project_name}-private-app-subnet-az2"
-  Environment = var.environment
-}
+    Name        = "${var.project_name}-private-app-subnet-az2"
+    Environment = var.environment
+  }
 }
 
 # create private data subnet az1
 
 resource "aws_subnet" "private_data_subnet_az1" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_data_subnet_az1_cidr
-  availability_zone = var.availability_zones[0]
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_data_subnet_az1_cidr
+  availability_zone       = var.availability_zones[0]
   map_public_ip_on_launch = false
 
   tags = {
-  Name        = "${var.project_name}-private-data-subnet-az1"
-  Environment = var.environment
-}
+    Name        = "${var.project_name}-private-data-subnet-az1"
+    Environment = var.environment
+  }
 }
 
 # create private data subnet az2
 resource "aws_subnet" "private_data_subnet_az2" {
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.private_data_subnet_az2_cidr
-  availability_zone = var.availability_zones[1]
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.private_data_subnet_az2_cidr
+  availability_zone       = var.availability_zones[1]
   map_public_ip_on_launch = false
 
- tags = {
-  Name        = "${var.project_name}-private-data-subnet-az2"
-  Environment = var.environment
-}
+  tags = {
+    Name        = "${var.project_name}-private-data-subnet-az2"
+    Environment = var.environment
+  }
 }
