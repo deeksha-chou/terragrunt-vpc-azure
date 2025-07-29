@@ -1,33 +1,65 @@
+
+name: terragrunt-$(Date:yyyyMMdd)$(Rev:.r)
+
 trigger:
-  branches:
+  paths:
     include:
-      - main
+      - envs/**
+      - terragrunt/**
+      - modules/**
 
 pool:
-  name: aws_host  # Your self-hosted agent name
+  name: aws-agent
 
 variables:
-  - group: aws-credentials  # This must contain AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+  - group: aws-credentials
 
-steps:
-  - script: |
-      echo "Installing Terragrunt..."
-      choco install terragrunt -y
-    displayName: "Install Terragrunt"
+stages:
+- stage: Validate
+  displayName: 'Lint and Format Check'
+  jobs:
+    - job: format_lint
+      displayName: 'Check terraform fmt and tflint'
+      steps:
+        - script: |
+            choco install terraform --version=1.6.6 -y
+            choco install tflint -y
+          displayName: 'Install terraform and tflint'
 
-  - powershell: |
-      Write-Output "Configuring AWS credentials..."
-      $awsDir = "$env:USERPROFILE\.aws"
-      New-Item -ItemType Directory -Path $awsDir -Force | Out-Null
-      $creds = "[default]`naws_access_key_id=$env:AWS_ACCESS_KEY_ID`naws_secret_access_key=$env:AWS_SECRET_ACCESS_KEY"
-      $creds | Out-File -FilePath "$awsDir\credentials" -Encoding ascii
-    displayName: "Configure AWS CLI credentials"
+        - script: |
+            terraform fmt -check -recursive
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Terraform files are not properly formatted. Run 'terraform fmt -recursive' locally."
+              exit 1
+            }
+          displayName: 'Check formatting with terraform fmt'
+          shell: powershell
 
-  - script: |
-      cd envs/dev
-      terragrunt init
-      terragrunt plan
-    displayName: "Terragrunt Init & Plan - dev"
-    env:
-      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
-      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+        - script: |
+            tflint --recursive
+          displayName: 'Lint Terraform code with tflint'
+
+- stage: Plan
+  dependsOn: Validate
+  jobs:
+    - job: terragruntPlan
+      displayName: 'Terragrunt Init & Plan'
+      steps:
+        - script: |
+            choco install terragrunt -y
+            cd terragrunt/envs/dev
+            terragrunt init
+            terragrunt plan
+          displayName: 'Terragrunt Init and Plan (Dev)'
+
+- stage: Apply
+  dependsOn: Plan
+  condition: succeeded()
+  jobs:
+    - job: terragruntApply
+      displayName: 'Terragrunt Apply'
+      steps:
+        - script: |
+            cd terragrunt/envs/dev
+            terragrunt apply -auto-approve
+          displayName: 'Terragrunt Apply (Dev)'
