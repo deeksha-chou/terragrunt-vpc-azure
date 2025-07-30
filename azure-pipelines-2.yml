@@ -1,15 +1,24 @@
 trigger:
+  batch: true
   branches:
     include:
       - main
       - feature/*
       - dev
+  # Optional path filters:
+  # paths:
+  #   include:
+  #     - terragrunt/**
+  #     - .azure/**
+  #   exclude:
+  #     - README.md
+  #     - docs/**
 
 pool:
   name: aws-agent
 
 variables:
-  - group: aws-credentials
+  - group: aws-credentials   # expects AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION
 
 stages:
   - stage: Format
@@ -17,15 +26,10 @@ stages:
     jobs:
       - job: FormatCheck
         steps:
-
-          - script: |
-              terraform fmt -check -recursive
+          - checkout: self
+          - script: terraform fmt -check -recursive
             displayName: "Check Terraform formatting"
             workingDirectory: $(System.DefaultWorkingDirectory)
-          - script: |
-              echo "Formatting is correct."
-            displayName: "Formatting Passed"
-            condition: succeeded()
 
   - stage: Lint
     displayName: "Terraform Lint Check"
@@ -33,13 +37,15 @@ stages:
     jobs:
       - job: LintCheck
         steps:
+          - checkout: self
           - script: |
-              curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
-            displayName: "Install tflint"
-          - script: |
+              tflint --init
               tflint --recursive
-            displayName: "Run tflint"
+            displayName: "Run TFLint"
             workingDirectory: $(System.DefaultWorkingDirectory)
+            # Optional: prevent scanning Terragrunt cache
+            # env:
+            #   TFLINT_CONFIG: $(System.DefaultWorkingDirectory)/.tflint.hcl
 
   - stage: Validate
     displayName: "Terragrunt Validate"
@@ -48,10 +54,13 @@ stages:
       - job: Validate
         steps:
           - checkout: self
-          - script: |
-              terragrunt validate-all
+          - script: terragrunt run-all validate
             displayName: "Terragrunt Validate"
             workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+            env:
+              AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_DEFAULT_REGION: $(AWS_DEFAULT_REGION)
 
   - stage: Plan
     displayName: "Terragrunt Plan"
@@ -60,20 +69,26 @@ stages:
       - job: Plan
         steps:
           - checkout: self
-          - script: |
-              terragrunt plan-all
+          - script: terragrunt run-all plan
             displayName: "Terragrunt Plan"
             workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+            env:
+              AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_DEFAULT_REGION: $(AWS_DEFAULT_REGION)
 
   - stage: Apply
     displayName: "Terragrunt Apply"
     dependsOn: Plan
-    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))  # only manual runs apply
     jobs:
       - job: Apply
         steps:
           - checkout: self
-          - script: |
-              terragrunt apply-all -auto-approve
+          - script: terragrunt run-all apply -auto-approve
             displayName: "Terragrunt Apply"
             workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+            env:
+              AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_DEFAULT_REGION: $(AWS_DEFAULT_REGION)
