@@ -5,7 +5,7 @@ trigger:
       - main
       - feature/*
       - dev
-  # Optional path filters (uncomment if you want fewer runs)
+  # Optional path filters:
   # paths:
   #   include:
   #     - terragrunt/**
@@ -30,7 +30,7 @@ stages:
           - checkout: self
           - script: terraform fmt -check -recursive
             displayName: "Check Terraform formatting"
-            workingDirectory: '$(Build.SourcesDirectory)'
+            workingDirectory: '$(Pipeline.Workspace)\s'
 
   - stage: Lint
     displayName: "Terraform Lint Check"
@@ -44,10 +44,10 @@ stages:
               tflint --init
               tflint --recursive
             displayName: "Run TFLint"
-            workingDirectory: '$(Build.SourcesDirectory)'
+            workingDirectory: '$(Pipeline.Workspace)\s'
             # If you use a custom config file, set:
             # env:
-            #   TFLINT_CONFIG: $(Build.SourcesDirectory)\.tflint.hcl
+            #   TFLINT_CONFIG: $(Pipeline.Workspace)\s\.tflint.hcl
 
   - stage: Validate
     displayName: "Terragrunt Validate"
@@ -57,9 +57,18 @@ stages:
         displayName: "Validate (dev)"
         steps:
           - checkout: self
+
+          # Optional: keep this once to confirm paths resolve correctly
+          - script: |
+              echo Pipeline.Workspace = $(Pipeline.Workspace)
+              echo Build.SourcesDirectory = $(Build.SourcesDirectory)
+              if exist "$(Pipeline.Workspace)\s" (echo Repo folder exists) else (echo Repo folder MISSING)
+              dir "$(Pipeline.Workspace)\s\terragrunt\envs\dev"
+            displayName: "Debug paths"
+
           - script: terragrunt run-all validate
             displayName: "Terragrunt Validate"
-            workingDirectory: '$(Build.SourcesDirectory)\terragrunt\envs\dev'
+            workingDirectory: '$(Pipeline.Workspace)\s\terragrunt\envs\dev'
             env:
               AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
@@ -75,7 +84,7 @@ stages:
           - checkout: self
           - script: terragrunt run-all plan
             displayName: "Terragrunt Plan"
-            workingDirectory: '$(Build.SourcesDirectory)\terragrunt\envs\dev'
+            workingDirectory: '$(Pipeline.Workspace)\s\terragrunt\envs\dev'
             env:
               AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
@@ -93,7 +102,7 @@ stages:
           - checkout: self
           - script: terragrunt run-all apply -auto-approve
             displayName: "Terragrunt Apply"
-            workingDirectory: '$(Build.SourcesDirectory)\terragrunt\envs\dev'
+            workingDirectory: '$(Pipeline.Workspace)\s\terragrunt\envs\dev'
             env:
               AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
