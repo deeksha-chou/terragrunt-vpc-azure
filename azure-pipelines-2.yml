@@ -1,66 +1,81 @@
-name: terragrunt-$(Date:yyyyMMdd)$(Rev:.r)
-
 trigger:
-  paths:
+  branches:
     include:
-      - envs/**
-      - terragrunt/**
-      - modules/**
+      - main
+      - feature/*
+      - dev
 
 pool:
-  name: aws-agent  # Ensure this is your correct self-hosted agent pool
+  name: aws_host
 
 variables:
   - group: aws-credentials
 
 stages:
-- stage: Validate
-  displayName: 'Lint and Format Check'
-  jobs:
-    - job: format_lint
-      displayName: 'Check terraform fmt and tflint'
-      steps:
-        - script: |
-            choco install terraform --version=1.6.6 -y
-            choco install tflint -y
-          displayName: 'Install terraform and tflint'
-
-        - task: PowerShell@2
-          displayName: 'Check formatting with terraform fmt'
-          inputs:
-            targetType: 'inline'
-            script: |
+  - stage: Format
+    displayName: "Terraform Format Check"
+    jobs:
+      - job: FormatCheck
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.x'
+          - script: |
               terraform fmt -check -recursive
-              if ($LASTEXITCODE -ne 0) {
-                Write-Error "Terraform files are not properly formatted. Run 'terraform fmt -recursive' locally."
-                exit 1
-              }
+            displayName: "Check Terraform formatting"
+            workingDirectory: $(System.DefaultWorkingDirectory)
+          - script: |
+              echo "Formatting is correct."
+            displayName: "Formatting Passed"
+            condition: succeeded()
 
-        - script: |
-            tflint --recursive
-          displayName: 'Lint Terraform code with tflint'
+  - stage: Lint
+    displayName: "Terraform Lint Check"
+    dependsOn: Format
+    jobs:
+      - job: LintCheck
+        steps:
+          - script: |
+              curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+            displayName: "Install tflint"
+          - script: |
+              tflint --recursive
+            displayName: "Run tflint"
+            workingDirectory: $(System.DefaultWorkingDirectory)
 
-- stage: Plan
-  dependsOn: Validate
-  jobs:
-    - job: terragruntPlan
-      displayName: 'Terragrunt Init & Plan'
-      steps:
-        - script: |
-            choco install terragrunt -y
-            cd terragrunt/envs/dev
-            terragrunt init
-            terragrunt plan
-          displayName: 'Terragrunt Init and Plan (Dev)'
+  - stage: Validate
+    displayName: "Terragrunt Validate"
+    dependsOn: Lint
+    jobs:
+      - job: Validate
+        steps:
+          - checkout: self
+          - script: |
+              terragrunt validate-all
+            displayName: "Terragrunt Validate"
+            workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
 
-- stage: Apply
-  dependsOn: Plan
-  condition: succeeded()
-  jobs:
-    - job: terragruntApply
-      displayName: 'Terragrunt Apply'
-      steps:
-        - script: |
-            cd terragrunt/envs/dev
-            terragrunt apply -auto-approve
-          displayName: 'Terragrunt Apply (Dev)'
+  - stage: Plan
+    displayName: "Terragrunt Plan"
+    dependsOn: Validate
+    jobs:
+      - job: Plan
+        steps:
+          - checkout: self
+          - script: |
+              terragrunt plan-all
+            displayName: "Terragrunt Plan"
+            workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+
+  - stage: Apply
+    displayName: "Terragrunt Apply"
+    dependsOn: Plan
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: Apply
+        steps:
+          - checkout: self
+          - script: |
+              terragrunt apply-all -auto-approve
+            displayName: "Terragrunt Apply"
+            workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
