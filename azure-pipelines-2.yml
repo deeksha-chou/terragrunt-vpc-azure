@@ -6,7 +6,7 @@ trigger:
       - dev
 
 pool:
-  name: aws_agent
+  name: aws-agent
 
 variables:
   - group: aws-credentials
