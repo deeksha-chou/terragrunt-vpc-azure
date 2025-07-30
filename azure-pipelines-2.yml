@@ -5,7 +5,7 @@ trigger:
       - main
       - feature/*
       - dev
-  # Optional path filters:
+  # Optional path filters (uncomment if you want fewer runs)
   # paths:
   #   include:
   #     - terragrunt/**
@@ -25,38 +25,41 @@ stages:
     displayName: "Terraform Format Check"
     jobs:
       - job: FormatCheck
+        displayName: "Format"
         steps:
           - checkout: self
           - script: terraform fmt -check -recursive
             displayName: "Check Terraform formatting"
-            workingDirectory: $(System.DefaultWorkingDirectory)
+            workingDirectory: '$(Build.SourcesDirectory)'
 
   - stage: Lint
     displayName: "Terraform Lint Check"
     dependsOn: Format
     jobs:
       - job: LintCheck
+        displayName: "Lint"
         steps:
           - checkout: self
           - script: |
               tflint --init
               tflint --recursive
             displayName: "Run TFLint"
-            workingDirectory: $(System.DefaultWorkingDirectory)
-            # Optional: prevent scanning Terragrunt cache
+            workingDirectory: '$(Build.SourcesDirectory)'
+            # If you use a custom config file, set:
             # env:
-            #   TFLINT_CONFIG: $(System.DefaultWorkingDirectory)/.tflint.hcl
+            #   TFLINT_CONFIG: $(Build.SourcesDirectory)\.tflint.hcl
 
   - stage: Validate
     displayName: "Terragrunt Validate"
     dependsOn: Lint
     jobs:
       - job: Validate
+        displayName: "Validate (dev)"
         steps:
           - checkout: self
           - script: terragrunt run-all validate
             displayName: "Terragrunt Validate"
-            workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+            workingDirectory: '$(Build.SourcesDirectory)\terragrunt\envs\dev'
             env:
               AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
@@ -67,11 +70,12 @@ stages:
     dependsOn: Validate
     jobs:
       - job: Plan
+        displayName: "Plan (dev)"
         steps:
           - checkout: self
           - script: terragrunt run-all plan
             displayName: "Terragrunt Plan"
-            workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+            workingDirectory: '$(Build.SourcesDirectory)\terragrunt\envs\dev'
             env:
               AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
@@ -80,14 +84,16 @@ stages:
   - stage: Apply
     displayName: "Terragrunt Apply"
     dependsOn: Plan
-    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))  # only manual runs apply
+    # Only allow manual applies from the Run button
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
     jobs:
       - job: Apply
+        displayName: "Apply (dev)"
         steps:
           - checkout: self
           - script: terragrunt run-all apply -auto-approve
             displayName: "Terragrunt Apply"
-            workingDirectory: $(System.DefaultWorkingDirectory)/terragrunt/envs/dev
+            workingDirectory: '$(Build.SourcesDirectory)\terragrunt\envs\dev'
             env:
               AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
